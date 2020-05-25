@@ -38,8 +38,7 @@ RawSerial pc(USBTX, USBRX);
 RawSerial xbee(D12, D11);
 
 EventQueue queue(32 * EVENTS_EVENT_SIZE);
-EventQueue acc_queue(32 * EVENTS_EVENT_SIZE);
-Thread t1, acc_thread;
+Thread t1;
 
 
 void xbee_rx_interrupt(void);
@@ -51,11 +50,11 @@ void getAddr(Arguments *in, Reply *out);
 RPCFunction rpcAcc(&getAcc, "getAcc");
 RPCFunction rpcAddr(&getAddr, "getAddr");
 double x, y;
-
+/*
 RpcDigitalOut myled1(LED1,"myled1");
 RpcDigitalOut myled2(LED2,"myled2");
 RpcDigitalOut myled3(LED3,"myled3");
-
+*/
 int main(){
   pc.baud(9600);
    // Enable the FXOS8700Q
@@ -101,7 +100,6 @@ int main(){
   // start
   pc.printf("start\r\n");
   t1.start(callback(&queue, &EventQueue::dispatch_forever));
-  acc_thread.start(callback(&acc_queue, &EventQueue::dispatch_forever));
 
   // Setup a serial interrupt function of receiving data from xbee
   xbee.attach(xbee_rx_interrupt, Serial::RxIrq);
