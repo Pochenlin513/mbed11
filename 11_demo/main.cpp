@@ -28,7 +28,7 @@ int m_addr = FXOS8700CQ_SLAVE_ADDR1;
 
 void FXOS8700CQ_readRegs(int addr, uint8_t * data, int len);
 void FXOS8700CQ_writeRegs(uint8_t * data, int len);
-void accmeter();
+
 
 uint8_t who_am_i, data[2], res[6];
 int16_t acc16;
@@ -46,8 +46,10 @@ void xbee_rx_interrupt(void);
 void xbee_rx(void);
 void reply_messange(char *xbee_reply, char *messange);
 void check_addr(char *xbee_reply, char *messenger);
-void accControl(Arguments *in, Reply *out);
-RPCFunction rpcacc(&accControl, "accControl");
+void getAcc(Arguments *in, Reply *out);
+void getAddr(Arguments *in, Reply *out);
+RPCFunction rpcAcc(&getAcc, "getAcc");
+RPCFunction rpcAddr(&getAddr, "getAddr");
 double x, y;
 
 RpcDigitalOut myled1(LED1,"myled1");
@@ -56,7 +58,12 @@ RpcDigitalOut myled3(LED3,"myled3");
 
 int main(){
   pc.baud(9600);
+   // Enable the FXOS8700Q
 
+   FXOS8700CQ_readRegs( FXOS8700Q_CTRL_REG1, &data[1], 1);
+   data[1] |= 0x01;
+   data[0] = FXOS8700Q_CTRL_REG1;
+   FXOS8700CQ_writeRegs(data, 2);
   char xbee_reply[4];
 
   // XBee setting
@@ -149,35 +156,6 @@ void check_addr(char *xbee_reply, char *messenger){
   xbee_reply[3] = '\0';
 }
 
-void accControl (Arguments *in, Reply *out)   {
-    bool success = true;
-
-    // In this scenario, when using RPC delimit the two arguments with a space.
-    x = in->getArg<double>();
-    y = in->getArg<double>();
-
-    // Have code here to call another RPC function to wake up specific led or close it.
-    char buffer[200], outbuf[256];
-    char strings[20];
-    int led = x;
-    int on = y;
-    int n = sprintf(strings, "/myled%d/write %d", led, on);
-    int id;
-    strcpy(buffer, strings);
-    RPC::call(buffer, outbuf);
-    if (success) {
-        out->putData(buffer);
-    } else {
-        out->putData("Failed to execute LED control.");
-    }
-    pc.printf("\r\n");
-    //acc_queue.cancel(id);
-    if(on == 1){
-        id = acc_queue.call(&accmeter);
-    }
-    else if(on == 0)
-        acc_queue.cancel(id);
-}
 
 void FXOS8700CQ_readRegs(int addr, uint8_t * data, int len) {
    char t = addr;
@@ -189,41 +167,34 @@ void FXOS8700CQ_writeRegs(uint8_t * data, int len) {
    i2c.write(m_addr, (char *)data, len);
 }
 
-void accmeter(){
+void getAcc(Arguments *in, Reply *out) {
 
-   //pc.baud(115200);
-   // Enable the FXOS8700Q
+   FXOS8700CQ_readRegs(FXOS8700Q_OUT_X_MSB, res, 6);
 
-   FXOS8700CQ_readRegs( FXOS8700Q_CTRL_REG1, &data[1], 1);
-   data[1] |= 0x01;
-   data[0] = FXOS8700Q_CTRL_REG1;
-   FXOS8700CQ_writeRegs(data, 2);
+   acc16 = (res[0] << 6) | (res[1] >> 2);
+   if (acc16 > UINT14_MAX/2)
+      acc16 -= UINT14_MAX;
+   t[0] = ((float)acc16) / 4096.0f;
 
-   // Get the slave address
+   acc16 = (res[2] << 6) | (res[3] >> 2);
+   if (acc16 > UINT14_MAX/2)
+      acc16 -= UINT14_MAX;
+   t[1] = ((float)acc16) / 4096.0f;
+
+   acc16 = (res[4] << 6) | (res[5] >> 2);
+   if (acc16 > UINT14_MAX/2)
+      acc16 -= UINT14_MAX;
+   t[2] = ((float)acc16) / 4096.0f;
+
+   pc.printf("FXOS8700Q ACC: X=%1.4f(%x%x) Y=%1.4f(%x%x) Z=%1.4f(%x%x)",\
+         t[0], res[0], res[1],\
+         t[1], res[2], res[3],\
+         t[2], res[4], res[5]\
+   );
+}
+
+void getAddr(Arguments *in, Reply *out) {
    FXOS8700CQ_readRegs(FXOS8700Q_WHOAMI, &who_am_i, 1);
+   pc.printf("Here is %x", who_am_i);
 
-   while (true) {
-      FXOS8700CQ_readRegs(FXOS8700Q_OUT_X_MSB, res, 6);
-      acc16 = (res[0] << 6) | (res[1] >> 2);
-      if (acc16 > UINT14_MAX/2)
-         acc16 -= UINT14_MAX;
-      t[0] = ((float)acc16) / 4096.0f;
-
-      acc16 = (res[2] << 6) | (res[3] >> 2);
-      if (acc16 > UINT14_MAX/2)
-         acc16 -= UINT14_MAX;
-      t[1] = ((float)acc16) / 4096.0f;
-
-      acc16 = (res[4] << 6) | (res[5] >> 2);
-      if (acc16 > UINT14_MAX/2)
-         acc16 -= UINT14_MAX;
-      t[2] = ((float)acc16) / 4096.0f;
-      
-      pc.printf("FXOS8700Q ACC: X=%1.4f(%x%x) Y=%1.4f(%x%x) Z=%1.4f(%x%x)\r\n",\
-            t[0], res[0], res[1],\
-            t[1], res[2], res[3],\
-            t[2], res[4], res[5]\
-      );
-      wait(0.1);
-   }
 }
