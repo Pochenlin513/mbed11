@@ -20,7 +20,7 @@ char = s.read(3)
 print("Set DL <BASE_DL>.")
 print(char.decode())
 
-s.write("ATID 0x1\r\n".encode())
+s.write("ATID 0x27\r\n".encode())
 char = s.read(3)
 print("Set PAN ID <PAN_ID>.")
 print(char.decode())

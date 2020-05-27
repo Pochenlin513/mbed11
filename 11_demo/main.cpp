@@ -81,7 +81,7 @@ int main(){
   xbee.printf("ATDL 0x140\r\n");
   reply_messange(xbee_reply, "setting DL : <REMOTE_DL>");
 
-  xbee.printf("ATID 0x1\r\n");
+  xbee.printf("ATID 0x27\r\n");
   reply_messange(xbee_reply, "setting PAN ID : <PAN_ID>");
 
   xbee.printf("ATWR\r\n");
